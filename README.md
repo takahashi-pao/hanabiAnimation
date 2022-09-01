@@ -32,13 +32,16 @@ summary
 This Animation is configured 3 Part, the launch, the explosion and the vanishment(fade out).
 
 The First Part, about 3.3s (200frame).
+
 Y-direction movement decrease every frame(defined 4px), so explodes when it reaches 0.
 
 The Next Part, 0.016s (1frame).
+
 The direction and amount of movement of the particles are determined, and they explode.
 At this time, about 300 particles are generated.
 The gradation is expressed by setting the colors separately for the inner 200 grains and the outer 100 grains.
 
 The Final Part, about 3.3s(200frame).
+
 The generated particles disappear over 200 frames.
 
