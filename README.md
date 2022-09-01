@@ -9,6 +9,7 @@ Regarding the launch position
 ---------------------------------
 The location in canvas launched by pressed Keys↓↓↓
 (※Case 1～3, at a random within a specific location...)
+
 Case 1:
   Left egde (about 1/3 part of)
 
