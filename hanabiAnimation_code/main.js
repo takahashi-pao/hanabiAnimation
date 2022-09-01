@@ -36,16 +36,92 @@
 // ・hpにより、透明度を操作する
 // ・afterImage配列にAfterImageクラスオブジェクトを格納する
 
+// ----------------------
+// 座標に関するtips
+// ----------------------
+// ● HTML: 200x100
+// 　＜canvas width="200" height="100" id="canvas" ＞＜/canvas＞
+// ● 座標系
+// 　左上が原点(0,0)、右下が(200,100)
+// 　X軸方向のピクセル（画素）番号は 0～199
+// 　Y軸方向のピクセル（画素）番号は 0～ 99
+// 　左上のピクセルの中央は（0.5, 0.5）
 
+// ---------------------------
+// シフト演算に関するtips
+// ---------------------------
+// なぜシフト演算が必要か調査中です
+// シフトしないとうまく動作しないです
 
-const SCREEN_SIZE_W = 800;
-const SCREEN_SIZE_H = 600;
+// キャンバス設定
+let canvas = document.getElementById("can");
+let con = canvas.getContext("2d");
 
-let can = document.getElementById("can");
-let con = can.getContext("2d");
+// キャンバスサイズ設定
+const CANVAS_SIZE_W = 800;
+const CANVAS_SIZE_H = 600;
+canvas.width  = CANVAS_SIZE_W;
+canvas.height = CANVAS_SIZE_H;
 
-can.width  = SCREEN_SIZE_W;
-can.height = SCREEN_SIZE_H;
+// 粒子制御のための配列
+let hanabi=[];
+let afterImage =[];
+// let xPosition;
+
+// 色のプロパティ
+let fwcol = [
+    "#ffdd55",
+    "#ff6622",
+    "#2255ff",
+    "#44ff44",
+];
+
+/**
+ * ランダムな値を生成する関数
+ * @param {*} min 乱数生成における最小値
+ * @param {*} max 乱数生成における最大値
+ * @returns 規定値範囲内のランダムな整数
+ */
+ function rand(min,max)
+ {
+     return Math.floor(Math.random()*(max-min+1))+min;
+ }
+
+ /**
+ * 着火関数
+ * キーボードが押された時に呼ばれる
+ * @param {*} e イベントオブジェクト
+ */
+document.onkeydown = function(e)
+{
+	// １，２，３、Shiftキーのどれかが押下されると実行
+	if(e.key == 1 ||
+		e.key == 2 ||
+		e.key == 3 ||
+		e.shiftKey == true
+	)
+	{
+        // 打ち上げの場所をある程度決める
+		let s;
+		if(e.key == 1)s=0;
+		if(e.key==2)s=250;
+		if(e.key==3)s=520;
+		
+        // 押下されたキーにより画面をおよそ3分割したx（横座標）が決定
+		let x=rand(s,s+250);
+        // Shiftのときは完全ランダムなx座標が決定
+		if( e.shiftKey == true )x=rand(0,CANVAS_SIZE_W);
+        // y座標は画面最下部から50pxほどの間で決定
+		let y=rand(CANVAS_SIZE_H-50,CANVAS_SIZE_H);
+        // 花火の配列に上記で設定した花火クラスのオブジェクトを末尾に新規追加
+		// <<8はビット演算子の都合上
+		// ここで設定された3つ目の引数「ca」はHanabi.drawメソッドで書き換えるのでダミー
+		// tp, hpはインスタンス化の際に設定されるので引数に渡す必要はない        
+		hanabi.push(
+				new Hanabi( x<<8,y<<8, 0, 0,-800,4) 
+			);
+	}
+}
 
 //---------------------------------------------------------------------------------------------
 // 花火（粒子）の動作制御を目的とした処理
@@ -55,12 +131,55 @@ can.height = SCREEN_SIZE_H;
 // 着火に関わらずインターバルは実行されている
 setInterval(mainLoop,1000/60);
 
-// 粒子制御のための配列
-let hanabi=[];
-let afterImage =[];
-let xYeah;
+/**
+ * 実行されるメソッドはフレーム毎の更新、描画メソッド
+ * 上記インターバル（周期）でループする（現在は60fpsで設定）
+ */
+function mainLoop()
+{
+	updateEveryFrame();
+	drawEveryFrame();
+}
 
-// 配列に格納されたクラスオブジェクトを更新
+/**
+ * フレーム毎の更新処理
+ */
+function updateEveryFrame()
+{
+    //着火キーが押下されるまではlengthが0なので実行されない
+	updateObj(hanabi);
+	updateObj(afterImage);
+}
+
+/**
+ * フレーム毎の描画
+ */
+function drawEveryFrame()
+{
+	// //画面を黒でクリア
+	con.globalCompositeOperation = 'source-over';
+	con.fillStyle="#000000";
+	con.fillRect(0,0,CANVAS_SIZE_W,CANVAS_SIZE_H);
+    //// 透明な背景
+    // con.clearRect(0, 0, CANVAS_SIZE_W, CANVAS_SIZE_H);
+	
+    // // 花火と残像の配列格納数を表示(調査用)
+	// con.fillStyle="#ffffff";
+	// con.fillText("H:"+hanabi.length,10,10);
+	// con.fillText("Z:"+afterImage.length,10,30);
+	// con.fillText("x:"+ xPosition, 10, 50);
+	
+	con.globalCompositeOperation = 'lighter';
+
+    // 着火キーが押下されるまではいずれの配列もlengthが0なので実行されない
+	drawObj(afterImage);
+	drawObj(hanabi);
+}
+
+/**
+ * 配列に格納されたクラスオブジェクトを更新
+ * @param {any} obj 更新を行うクラスオブジェクトが格納された配列
+ */ 
 function updateObj(obj)
 {
 	//配列内に格納されたクラスオブジェクトを更新
@@ -81,130 +200,41 @@ function updateObj(obj)
 		// ----------------------------
 		// AfterImage.updateに関して
 		// ----------------------------
+        // 残像のキルフラグの管理を行う
+
 		obj[i].update();
 		if( obj[i].kill )obj.splice(i,1);
 	}
 }
 
-// 配列に格納されたクラスオブジェクトを描画
-function drawObj(obj)
-{
-	//配列内に格納されたクラスオブジェクトを描画
-	//配列内に格納されたクラスのメソッド（draw）を実行
-	for(let i=obj.length-1;i>=0;i--)
-	{
-		obj[i].draw();
-	}
-}
-
-//毎フレーム毎の更新処理
-function updateEveryFrame()
-{
-    //着火キーが押下されるまではlengthが0なので実行されない
-	updateObj(hanabi);
-	updateObj(afterImage);
-}
-
-//毎フレーム毎の描画
-function drawEveryFrame()
-{
-	// //画面を黒でクリア
-	con.globalCompositeOperation = 'source-over';
-	con.fillStyle="#000000";
-	con.fillRect(0,0,SCREEN_SIZE_W,SCREEN_SIZE_H);
-	
-    // // 花火と残像の配列格納数を表示
-	// con.fillStyle="#ffffff";
-	// con.fillText("H:"+hanabi.length,10,10);
-	// con.fillText("Z:"+afterImage.length,10,30);
-	// con.fillText("x:"+ xYeah, 10, 50);
-	
-	con.globalCompositeOperation = 'lighter';
-
-    // con.clearRect(0, 0, SCREEN_SIZE_W, SCREEN_SIZE_H);
-	drawObj(afterImage);
-	drawObj(hanabi);
-}
-
-// 11行目の間隔（60fps）でループする
-// 実行されるメソッドはフレーム毎の更新、描画メソッド
-function mainLoop()
-{
-	updateEveryFrame();
-	drawEveryFrame();
-}
-
-// ランダムな値を生成する関数
-function rand(min,max)
-{
-	return Math.floor(Math.random()*(max-min+1))+min;
-}
-
-//キーボードが押された時に呼ばれる
-document.onkeydown = function(e)
-{
-	// １，２，３、Shiftキーのどれかが押下されると実行
-	if(e.key == 1 ||
-		e.key == 2 ||
-		e.key == 3 ||
-		e.shiftKey == true
-	)
-	{
-        // 打ち上げの場所をある程度決める
-		let s;
-		if(e.key == 1)s=0;
-		if(e.key==2)s=250;
-		if(e.key==3)s=520;
-		
-        // 押下されたキーにより画面をおよそ3分割したx（横座標）が決定
-		let x=rand(s,s+250);
-        // Shiftのときは完全ランダムなx座標が決定
-		if( e.shiftKey == true )x=rand(0,SCREEN_SIZE_W);
-        // y座標は画面最下部から50pxほどの間で決定
-		let y=rand(SCREEN_SIZE_H-50,SCREEN_SIZE_H);
-        // 花火の配列に上記で設定した花火クラスのオブジェクトを末尾に新規追加
-		// <<8はビット演算子の都合上
-		// ここで設定された3つ目の引数「ca」はHanabi.drawメソッドで書き換えるのでダミー
-		// tp, hpはインスタンス化の際に設定されるので引数に渡す必要はない
-		hanabi.push(
-				new Hanabi( x<<8,y<<8, 0, 0,-800,4) 
-			);
-	}
+/**
+ * 配列に格納されたクラスオブジェクトを描画
+ * @param {any} obj 描画を行うクラスオブジェクトが格納された配列
+ */ 
+ function drawObj(obj) {
+    //配列内に格納されたクラスオブジェクトを描画
+    //配列内に格納されたクラスのメソッド（draw）を実行
+    for (let i = obj.length - 1; i >= 0; i--) {
+        obj[i].draw();
+    }
 }
 
 //---------------------------------------------------------------------------------------------
 // 花火（粒子）のパラメータ制御を目的とした処理
 //---------------------------------------------------------------------------------------------
-
-// 座標に関するtips
-// ● HTML: 200x100
-// 　＜canvas width="200" height="100" id="canvas" ＞＜/canvas＞
-
-// ● 座標系
-// 　左上が原点(0,0)、右下が(200,100)
-// 　X軸方向のピクセル（画素）番号は 0～199
-// 　Y軸方向のピクセル（画素）番号は 0～ 99
-// 　左上のピクセルの中央は（0.5, 0.5）
-
-// 色のプロパティ
-let fwcol = [
-    "#ffdd55",
-    "#ff6622",
-    "#2255ff",
-    "#44ff44",
-];
-
-    // 残像クラス
+    /**
+     * 残像クラス
+     */
     class AfterImage
     {
         // コンストラクター
-        // 座標（x, y）、カウンター（c）、キルフラグ、色情報（col）
-        constructor(x,y,c)
+        // 座標（x, y）、色情報（col）、キルフラグ、カウンター
+        constructor(x,y,col)
         {
-            this.col=c;
+            this.col=col;
             this.x=x;
             this.y=y;
-            this.c =10;
+            this.counter =10;
             this.kill=false;
         }
         
@@ -214,7 +244,7 @@ let fwcol = [
             // キルフラグがONなら何もしない
             if(this.kill)return;
             // 実行の度、カウンターをインクリメントし０（＝残像粒子が透明）になったらキルフラグをONにする
-            if(--this.c==0)this.kill=true;
+            if(--this.counter==0)this.kill=true;
         }
         
         // 残像クラス限定の描画メソッド
@@ -224,8 +254,8 @@ let fwcol = [
             if(this.kill)return;
             
             // カウンターのデクリメントを利用して徐々に薄くなる
-            con.globalAlpha=1.0 * this.c /10;
-            // 花火色を引数cにより決める（打ち上げ中（tp == 0）は確定で黄色　ex.)292行目）
+            con.globalAlpha=1.0 * this.counter /10;
+            // 花火色を引数cにより決める（打ち上げ中（tp == 0）は確定で黄色　ex.)Hanabi.draw参照)
             con.fillStyle=fwcol[this.col];
             // 花火を引数のx, y座標に2×2pxで描画する
             con.fillRect((this.x>>8),(this.y>>8),2,2);
@@ -233,7 +263,9 @@ let fwcol = [
         }
     }
     
-    // 花火本体＝爆発クラス
+    /**
+     * 花火本体＝爆発クラス
+     */
     class Hanabi
     {
         // コンストラクター
@@ -248,6 +280,7 @@ let fwcol = [
             this.kill=false;
 			// 着火時、爆発時に設定される重力…vyに加算されていく固定値＝y軸移動量が漸次減少する
             this.gv = gv;
+            // 爆発時再設定される
             if(tp==undefined)tp=0;
             this.tp=tp;
 			// ここで設定されるhpは爆発条件の粒子設定の際に再設定されるのでダミー
@@ -259,96 +292,94 @@ let fwcol = [
         }
         
         // 花火クラス限定の更新メソッド
-        update()
-        {
-			// -------------------------------------------------------------------------------
-			// 必ず処理される内容
-			// -------------------------------------------------------------------------------
+        // 3段階の処理が行われる
+        update() {
+            // -------------------------------------------------------------------------------
+            // ①必ず処理される内容
+            // -------------------------------------------------------------------------------
             // キルフラグがONなら何もしない
-            if(this.kill)return;
+            if (this.kill) return;
             // x, y座標の決定
             // spは漸次減少するのでx, yは減り続ける → 爆発点を中心に広がる＋広がるにつれ1フレームごとの移動量が減る
-            this.x +=this.vx*this.sp/100;
-            this.y +=this.vy*this.sp/100;
-			con.fillStyle = "#ffffff";
-			con.fillText("x:"+ this.x, 10, 70);
+            this.x += this.vx * this.sp / 100;
+            this.y += this.vy * this.sp / 100;
             // 重力の決定
             // 漸次遅くなる
-            this.vy+=this.gv;
-            
-            // 画面からはみ出たらキルフラグをON＝何もしない
-            if(this.x>>8 <0 || this.x>>8 >SCREEN_SIZE_W ||
-                this.y>>8 > SCREEN_SIZE_H )this.kill=true;
+            this.vy += this.gv;
+
             
 
-			// -------------------------------------------------------------------------------------------
-            // 爆発条件（tp == 0 && this.vy >= 0）を満たした場合に1度だけ処理される内容
-			// -------------------------------------------------------------------------------------------			
+            // 画面からはみ出たらキルフラグをON＝何もしない
+            if (this.x >> 8 < 0 || this.x >> 8 > CANVAS_SIZE_W ||
+                this.y >> 8 > CANVAS_SIZE_H) this.kill = true;
+
+
+            // -------------------------------------------------------------------------------------------
+            // ②爆発条件（tp == 0 && this.vy >= 0）を満たした場合に1度だけ処理される内容
+            // -------------------------------------------------------------------------------------------			
             // 打ち上げ中　かつ　移動量(vy)が0以上＝下方向への移動をする瞬間
             // つまり速度=0になった場合、爆発する			
-            if(this.tp==0 && this.vy>=0 )
-            {
+            if (this.tp === 0 && this.vy >= 0) {
                 // 打ち上げた花火の種を消す
-                this.kill=true;
-                
+                this.kill = true;
+
                 // 内側の粒子を生成
-                for(let i=0;i<200;i++)
-                {
-					// 角度の設定
-                    let r=rand(0,360);
-					// 速度の設定
-                    let s=rand(10,300);
-					// |10| <= x移動量、y移動量 <= |300|となり、爆発点を中心とした10pxの円弧以内で消える粒子は生成されない
-					// x移動量の設定
-                    let vx=Math.cos(r*Math.PI/180)*s;
-					// y移動量の設定
-                    let vy=Math.sin(r*Math.PI/180)*s;
-					// 打ち上げ後判定（tp=1）とhp（200フレーム生存）を設定してhanabi配列末尾に設定
-                    hanabi.push(                        
-                        new Hanabi( this.x,this.y,this.col,vx,vy,1,1,200) 
+                for (let i = 0; i < 200; i++) {
+                    // 角度の設定
+                    let r = rand(0, 360);
+                    // 速度の設定 => 内側の粒子の最高速が最低速 = グラデーションの発生
+                    // （実質的な移動量の設定）
+                    let s = rand(10, 300);
+                    // |min| <= x移動量、y移動量 <= |max|となり、爆発点を中心とした{min}pxの円弧以内で消える粒子は生成されない
+                    // x移動量（総量）の設定
+                    let vx = Math.cos(r * Math.PI / 180) * s;
+                    // y移動量（総量）の設定
+                    let vy = Math.sin(r * Math.PI / 180) * s;
+                    // 打ち上げ後判定（tp=1）とhp（{hp}フレーム生存）を設定してhanabi配列末尾に設定
+                    hanabi.push(
+                        new Hanabi(this.x, this.y, this.col, vx, vy, 1, 1, 200)
                     );
                 }
 
                 // 外側の粒子色の設定
-                let col=rand(0,3);
+                let col = rand(0, 3);
                 // 外側の粒子を生成
-                for(let i=0;i<100;i++)
-                {
-					// 角度の設定
-                    let r=rand(0,360);
-					// 速度の設定 => 内側の粒子の最高速が最低速 = グラデーションの発生
-                    let s=rand(300, 400);
-					// xベクトルの設定
-                    let vx=Math.cos(r*Math.PI/180)*s;
-					// yベクトルの設定
-                    let vy=Math.sin(r*Math.PI/180)*s;
-					// 打ち上げ後判定（tp=1）とhp（200フレーム生存）を設定してhanabi配列末尾に設定
-                    hanabi.push(                        
-                        new Hanabi( this.x,this.y,col,vx,vy,1,1,200) 
+                for (let i = 0; i < 100; i++) {
+                    // 角度の設定
+                    let r = rand(0, 360);
+                    // 速度の設定 => 内側の粒子の最高速が最低速 = グラデーションの発生
+                    // （実質的な移動量の設定）
+                    let s = rand(300, 400);
+                    // x移動量（総量）の設定
+                    let vx = Math.cos(r * Math.PI / 180) * s;
+                    // y移動量（総量）の設定
+                    let vy = Math.sin(r * Math.PI / 180) * s;
+                    // 打ち上げ後判定（tp=1）とhp（{hp}フレーム生存）を設定してhanabi配列末尾に設定
+                    hanabi.push(
+                        new Hanabi(this.x, this.y, col, vx, vy, 1, 1, 200)
                     );
                 }
-                
+
             }
-			// ------------------------------------------------------------------------------------
-            // 爆発後、必ず処理される内容
-			// ------------------------------------------------------------------------------------
-            if(this.tp==1)
-            {
+            // ------------------------------------------------------------------------------------
+            // ③爆発後、必ず処理される内容
+            // ------------------------------------------------------------------------------------
+            if (this.tp === 1) {
                 // 打ち上げたらhp(粒子ごとに設定)をデクリメント
                 this.hp--;
-                if(this.hp<100)
-                {
-                    // hp<100になるとspも減らすデクリメント
-                    if(this.sp)this.sp--;
+                if (this.hp < 100) {
+                    // hp<100になるとspもデクリメント
+                    // spが減ると1フレームごとの粒子の移動量が減る（減速）
+                    if (this.sp) this.sp--;
                 }
-                // hp==0になるとその粒子を削除
-                if(this.hp==0)this.kill=true;
+                // hp==0になるとその粒子を削除（速度も0になっている）
+                if (this.hp === 0) this.kill = true;
             }
         }
         
         draw()
         {
-            // キラキラ設定
+            // キラキラ設定（点滅を用いて表現）
             // tp>0（＝爆発中）のとき、80%の確率で何もしない
             if(this.tp>0 && rand(0,100)<80 )return;
             // tp==0（打ち上げ中）のとき、20%の確率で何もしない
@@ -359,7 +390,7 @@ let fwcol = [
             
             // くっきり
             con.globalAlpha=1.0;
-            // hp<50なら次第に薄くする
+            // hp<50なら次第に薄く（hp依存）する
             if(this.hp<50)con.globalAlpha=this.hp/50;
             // 色情報の設定
             let col=this.col;
@@ -382,7 +413,7 @@ let fwcol = [
             afterImage.push(
                 new AfterImage( this.x,this.y,col) 
             );
-			xYeah = this.x;
+			// xPosition = this.x;
         }
     }
     
