@@ -377,6 +377,8 @@ function updateObj(obj)
             }
         }
         
+        // 花火クラス限定の描画メソッド
+        // 粒子（オリジナル）、エフェクト用粒子（2種類）の描画をメイン処理とする
         draw()
         {
             // キラキラ設定（点滅を用いて表現）
@@ -413,6 +415,7 @@ function updateObj(obj)
             afterImage.push(
                 new AfterImage( this.x,this.y,col) 
             );
+            // 検証用
 			// xPosition = this.x;
         }
     }
